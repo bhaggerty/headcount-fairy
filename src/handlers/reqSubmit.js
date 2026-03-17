@@ -82,7 +82,7 @@ function register(app) {
       await writeReq(req);
 
       await client.chat.postMessage({
-        channel: process.env.SLACK_USER_ALEX_BOVEE,
+        channel: process.env.SLACK_USER_HIRING_LEAD,
         ...alexDM(req),
       });
 
@@ -91,12 +91,12 @@ function register(app) {
         text:
           `✨ *Your wish has been submitted!*\n` +
           `Req ID: \`${req.req_id}\`\n\n` +
-          `Alex is reviewing your request. I'll send you an update as soon as there's news! 🧚`,
+          `Your request is now under review. I'll send you an update as soon as there's news! 🧚`,
       });
     } catch (err) {
       console.error('Error in req_form_submit:', err);
       await client.chat.postMessage({
-        channel: process.env.SLACK_USER_JENNI_CAPURRO,
+        channel: process.env.SLACK_USER_TALENT_COORDINATOR,
         text:
           `⚠️ *Error processing req submission*\n${err.message}\n\n` +
           `User: <@${body.user.id}>\nForm data:\n\`\`\`${JSON.stringify(view.state.values, null, 2)}\`\`\``,

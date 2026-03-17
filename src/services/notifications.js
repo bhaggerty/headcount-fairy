@@ -1,21 +1,21 @@
 const DEPT_ROUTING = {
-  Engineering: () => process.env.SLACK_USER_STEVEN_CRAIG,
-  Product: () => process.env.SLACK_USER_STEVEN_CRAIG,
-  Design: () => process.env.SLACK_USER_STEVEN_CRAIG,
-  Sales: () => process.env.SLACK_USER_ALI_CAMILLI,
-  Marketing: () => process.env.SLACK_USER_ALI_CAMILLI,
-  CS: () => process.env.SLACK_USER_ALI_CAMILLI,
+  Engineering: () => process.env.SLACK_USER_TECH_RECRUITER,
+  Product: () => process.env.SLACK_USER_TECH_RECRUITER,
+  Design: () => process.env.SLACK_USER_TECH_RECRUITER,
+  Sales: () => process.env.SLACK_USER_GTM_RECRUITER,
+  Marketing: () => process.env.SLACK_USER_GTM_RECRUITER,
+  CS: () => process.env.SLACK_USER_GTM_RECRUITER,
 };
 
-async function dmJenni(client, text) {
+async function dmCoordinator(client, text) {
   await client.chat.postMessage({
-    channel: process.env.SLACK_USER_JENNI_CAPURRO,
+    channel: process.env.SLACK_USER_TALENT_COORDINATOR,
     text,
   });
 }
 
-async function dmJenniError(client, err, req) {
-  await dmJenni(
+async function dmCoordinatorError(client, err, req) {
+  await dmCoordinator(
     client,
     `⚠️ *Headcount Fairy Error*\n${err.message}\n\nReq data:\n\`\`\`${JSON.stringify(req, null, 2)}\`\`\``
   );
@@ -25,7 +25,7 @@ async function routeToRecruiter(client, req) {
   const recruiterIdFn = DEPT_ROUTING[req.department];
   const recruiterId = recruiterIdFn
     ? recruiterIdFn()
-    : process.env.SLACK_USER_BLAKE_HAGGERTY;
+    : process.env.SLACK_USER_GENERAL_RECRUITER;
 
   await client.chat.postMessage({
     channel: recruiterId,
@@ -65,4 +65,4 @@ async function routeToRecruiter(client, req) {
   });
 }
 
-module.exports = { dmJenni, dmJenniError, routeToRecruiter };
+module.exports = { dmCoordinator, dmCoordinatorError, routeToRecruiter };

@@ -21,7 +21,7 @@ async function updateOriginalMsg(response_url, text) {
 }
 
 function register(app) {
-  // ── Alex: Approve ────────────────────────────────────────────────────────
+  // ── Hiring Lead: Approve ────────────────────────────────────────────────────────
   app.action('alex_approve', async ({ ack, body, respond, client }) => {
     await ack();
     try {
@@ -30,19 +30,19 @@ function register(app) {
       const req = await getReq(req_id);
 
       await client.chat.postMessage({
-        channel: process.env.SLACK_USER_JOSH_WEISS,
+        channel: process.env.SLACK_USER_EXEC_APPROVER,
         ...joshDM(req, ''),
       });
 
       await respond({
         replace_original: true,
-        text: `✅ You approved *${req.role_title}* (${req_id}). Request forwarded to Josh.`,
+        text: `✅ You approved *${req.role_title}* (${req_id}). Forwarded to executive approver.`,
         blocks: [
           {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `✅ You approved *${req.role_title}* (\`${req_id}\`). Request forwarded to Josh.`,
+              text: `✅ You approved *${req.role_title}* (\`${req_id}\`). Forwarded to executive approver.`,
             },
           },
         ],
@@ -52,7 +52,7 @@ function register(app) {
     }
   });
 
-  // ── Alex: Approve with Guidance ──────────────────────────────────────────
+  // ── Hiring Lead: Approve with Guidance ──────────────────────────────────────────
   app.action('alex_approve_guidance', async ({ ack, body, client }) => {
     await ack();
     try {
@@ -80,20 +80,20 @@ function register(app) {
       const req = await getReq(req_id);
 
       await client.chat.postMessage({
-        channel: process.env.SLACK_USER_JOSH_WEISS,
+        channel: process.env.SLACK_USER_EXEC_APPROVER,
         ...joshDM(req, guidance),
       });
 
       await updateOriginalMsg(
         response_url,
-        `✅ You approved *${req.role_title}* (\`${req_id}\`) with guidance. Forwarded to Josh.`
+        `✅ You approved *${req.role_title}* (\`${req_id}\`) with guidance. Forwarded to executive approver.`
       );
     } catch (err) {
       console.error('alex_guidance_submit error:', err);
     }
   });
 
-  // ── Alex: Return with Questions ──────────────────────────────────────────
+  // ── Hiring Lead: Return with Questions ──────────────────────────────────────────
   app.action('alex_return', async ({ ack, body, client }) => {
     await ack();
     try {
@@ -123,14 +123,14 @@ function register(app) {
 
       await client.chat.postMessage({
         channel: requester_id,
-        text: `↩️ Alex has some questions about your headcount request.`,
+        text: `↩️ The hiring lead has some questions about your headcount request.`,
         blocks: [
           {
             type: 'section',
             text: {
               type: 'mrkdwn',
               text:
-                `*↩️ Alex has returned your headcount request with questions*\n\n` +
+                `*↩️ Your headcount request has been returned with questions*\n\n` +
                 `*Questions:*\n${questions}`,
             },
           },
@@ -183,7 +183,7 @@ function register(app) {
       const req = await getReq(req_id);
 
       await client.chat.postMessage({
-        channel: process.env.SLACK_USER_ALEX_BOVEE,
+        channel: process.env.SLACK_USER_HIRING_LEAD,
         text: `💬 A requester has responded to your questions about a headcount request.`,
         blocks: [
           {
@@ -211,14 +211,14 @@ function register(app) {
 
       await client.chat.postMessage({
         channel: userId,
-        text: `✅ Your response has been sent to Alex. They'll review your req again soon!`,
+        text: `✅ Your response has been sent for review. They'll review your req again soon!`,
       });
     } catch (err) {
       console.error('requester_resubmit error:', err);
     }
   });
 
-  // ── Alex: Deny ───────────────────────────────────────────────────────────
+  // ── Hiring Lead: Deny ───────────────────────────────────────────────────────────
   app.action('alex_deny', async ({ ack, body, client }) => {
     await ack();
     try {
@@ -270,7 +270,7 @@ function register(app) {
     }
   });
 
-  // ── Josh: Approve ────────────────────────────────────────────────────────
+  // ── Exec Approver: Approve ────────────────────────────────────────────────────────
   app.action('josh_approve', async ({ ack, body, respond, client }) => {
     await ack();
     try {
@@ -328,7 +328,7 @@ function register(app) {
     }
   });
 
-  // ── Josh: Reject ─────────────────────────────────────────────────────────
+  // ── Exec Approver: Reject ─────────────────────────────────────────────────────────
   app.action('josh_reject', async ({ ack, body, client }) => {
     await ack();
     try {
@@ -356,7 +356,7 @@ function register(app) {
 
       await client.chat.postMessage({
         channel: requester_id,
-        text: `❌ Your headcount request has been rejected by Josh.`,
+        text: `❌ Your headcount request has been rejected.`,
         blocks: [
           {
             type: 'section',

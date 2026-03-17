@@ -5,10 +5,10 @@ A Slack bot that manages the full headcount request lifecycle — from submissio
 ## How It Works
 
 1. **Submit** — anyone runs `/headcount-fairy` in Slack to open the request form. Optionally generate a job description with AI.
-2. **Alex reviews** — approves, approves with guidance, returns with questions, or denies.
-3. **Josh reviews** — approves or rejects.
+2. **Hiring Lead reviews** — approves, approves with guidance, returns with questions, or denies.
+3. **Executive Approver reviews** — approves or rejects.
 4. **Interview plan** — requester builds their panel and gets an AI-generated interview guide.
-5. **Fanout** — Jenni is notified, the req is routed to the right recruiter, and the job is opened and published in Ashby.
+5. **Fanout** — Talent Coordinator is notified, the req is routed to the right recruiter, and the job is opened and published in Ashby.
 
 All requests are logged to a Google Sheet for tracking and downstream system use.
 
@@ -20,7 +20,7 @@ src/
 ├── handlers/
 │   ├── command.js              — /headcount-fairy slash command
 │   ├── reqSubmit.js            — Form submission + AI JD generation
-│   ├── approvalActions.js      — Alex & Josh approval flows
+│   ├── approvalActions.js      — Dual-approval flows
 │   └── interviewSubmit.js      — Interview plan + post-approval fanout
 ├── views/
 │   ├── reqForm.js              — Requisition modal
@@ -30,25 +30,25 @@ src/
     ├── sheets.js               — Google Sheets read/write
     ├── openai.js               — GPT-4o JD and interview guide generation
     ├── ashby.js                — Ashby job creation and publishing
-    └── notifications.js        — Slack DMs to Jenni and recruiters
+    └── notifications.js        — Slack DMs to Talent Coordinator and recruiters
 ```
 
 ## Approval Flow
 
 ```
-Requester → /headcount-fairy → Alex → Josh → Requester (build interview plan) → Launch
+Requester → /headcount-fairy → Hiring Lead → Executive Approver → Requester (build interview plan) → Launch
 ```
 
-**Alex's options:** Approve · Approve with Guidance · Return with Questions · Deny
-**Josh's options:** Approve · Reject
+**Hiring Lead's options:** Approve · Approve with Guidance · Return with Questions · Deny
+**Executive Approver's options:** Approve · Reject
 
 ## Recruiter Routing
 
 | Department | Recruiter |
 |---|---|
-| Engineering, Product, Design | Steven Craig |
-| Sales, Marketing, Customer Success | Ali Camilli |
-| Everything else | Blake Haggerty |
+| Engineering, Product, Design | Tech Recruiter |
+| Sales, Marketing, Customer Success | GTM Recruiter |
+| Everything else | General Recruiter |
 
 ## Google Sheet
 
@@ -72,12 +72,12 @@ Managed via Union Station.
 ```
 SLACK_BOT_TOKEN
 SLACK_SIGNING_SECRET
-SLACK_USER_ALEX_BOVEE
-SLACK_USER_JOSH_WEISS
-SLACK_USER_JENNI_CAPURRO
-SLACK_USER_ALI_CAMILLI
-SLACK_USER_STEVEN_CRAIG
-SLACK_USER_BLAKE_HAGGERTY
+SLACK_USER_HIRING_LEAD
+SLACK_USER_EXEC_APPROVER
+SLACK_USER_TALENT_COORDINATOR
+SLACK_USER_GTM_RECRUITER
+SLACK_USER_TECH_RECRUITER
+SLACK_USER_GENERAL_RECRUITER
 OPENAI_API_KEY
 ASHBY_API_KEY
 GOOGLE_SHEETS_ID

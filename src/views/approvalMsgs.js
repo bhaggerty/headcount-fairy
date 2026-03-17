@@ -104,7 +104,7 @@ function joshDM(req, alexNotes) {
   if (alexNotes) {
     blocks.push({
       type: 'section',
-      text: { type: 'mrkdwn', text: `*Alex's Guidance:*\n_${alexNotes}_` },
+      text: { type: 'mrkdwn', text: `*Hiring Lead's Guidance:*\n_${alexNotes}_` },
     });
   }
 
@@ -220,7 +220,7 @@ function resubmitModal({ req_id, questions }) {
     blocks: [
       {
         type: 'section',
-        text: { type: 'mrkdwn', text: `*Alex's Questions:*\n${questions}` },
+        text: { type: 'mrkdwn', text: `*Hiring Lead's Questions:*\n${questions}` },
       },
       {
         type: 'input',

@@ -1,7 +1,7 @@
 const { buildInterviewScreen2 } = require('../views/interviewForm');
 const { updateReq, getReq } = require('../services/sheets');
 const { generateInterviewGuide } = require('../services/openai');
-const { dmJenni, dmJenniError, routeToRecruiter } = require('../services/notifications');
+const { dmCoordinator, dmCoordinatorError, routeToRecruiter } = require('../services/notifications');
 const { openAshbyReq, publishToWebsite } = require('../services/ashby');
 
 // Extract screen 1 values from view.state.values
@@ -129,8 +129,8 @@ function register(app) {
 
       // ── Post-approval fanout ─────────────────────────────────────────────
 
-      // 1. DM Jenni with full summary
-      await dmJenni(
+      // 1\. DM talent coordinator with full summary
+      await dmCoordinator(
         client,
         `🧚 *New Approved Req Ready for Launch — ${req.role_title}* (\`${req_id}\`)\n\n` +
           `*Department:* ${req.department} | *Level:* ${req.level} | *Headcount:* ${req.headcount}\n` +
@@ -151,7 +151,7 @@ function register(app) {
         await updateReq(req_id, { ashby_job_id: jobId });
       } catch (ashbyErr) {
         console.error('Ashby error (non-fatal):', ashbyErr);
-        await dmJenniError(client, ashbyErr, req).catch(() => {});
+        await dmCoordinatorError(client, ashbyErr, req).catch(() => {});
       }
 
       // 4. Confirm to requester
@@ -164,7 +164,7 @@ function register(app) {
       try {
         const { req_id } = JSON.parse(view.private_metadata);
         const req = await getReq(req_id).catch(() => ({ req_id }));
-        await dmJenniError(client, err, req);
+        await dmCoordinatorError(client, err, req);
       } catch (_) {}
     }
   });
