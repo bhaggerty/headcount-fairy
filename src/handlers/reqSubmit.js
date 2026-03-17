@@ -1,6 +1,6 @@
 const { buildReqForm } = require('../views/reqForm');
 const { alexDM } = require('../views/approvalMsgs');
-const { writeReq } = require('../services/sheets');
+const { writeReq } = require('../services/persistence');
 const { generateJobDescription } = require('../services/openai');
 
 function register(app) {

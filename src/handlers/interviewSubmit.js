@@ -1,5 +1,5 @@
 const { buildInterviewScreen2 } = require('../views/interviewForm');
-const { updateReq, getReq } = require('../services/sheets');
+const { updateReq, getReq } = require('../services/persistence');
 const { generateInterviewGuide } = require('../services/openai');
 const { dmCoordinator, dmCoordinatorError, routeToRecruiter } = require('../services/notifications');
 const { openAshbyReq, publishToWebsite } = require('../services/ashby');

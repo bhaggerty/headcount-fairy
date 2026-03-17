@@ -8,7 +8,7 @@ const {
   resubmitModal,
 } = require('../views/approvalMsgs');
 const { buildInterviewScreen1 } = require('../views/interviewForm');
-const { updateReq, getReq } = require('../services/sheets');
+const { updateReq, getReq } = require('../services/persistence');
 
 // Post to a Slack response_url to update the original message
 async function updateOriginalMsg(response_url, text) {
