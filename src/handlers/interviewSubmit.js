@@ -84,14 +84,20 @@ function register(app) {
 
       await updateReq(req_id, { interview_guide: guide });
 
-      // Upload as a downloadable DOCX file
-      const docxBuffer = await textToDocxBuffer(guide);
-      await client.files.uploadV2({
-        channel_id: body.user.id,
-        filename: `interview-guide-${(req.role_title || 'role').replace(/\s+/g, '-').toLowerCase()}.docx`,
-        file: docxBuffer,
-        initial_comment: `📋 *Interview Guide: ${req.role_title}* — download the .docx below.`,
+      // Post full guide as plain text so requester sees it immediately
+      await client.chat.postMessage({
+        channel: body.user.id,
+        text: `📋 *Interview Guide: ${req.role_title}*\n\n${guide}`,
       });
+      // Also upload as DOCX for download
+      textToDocxBuffer(guide).then((buf) =>
+        client.files.uploadV2({
+          channel_id: body.user.id,
+          filename: `interview-guide-${(req.role_title || 'role').replace(/\s+/g, '-').toLowerCase()}.docx`,
+          file: buf,
+          initial_comment: `⬇️ Download the guide as a .docx`,
+        })
+      ).catch((err) => console.error('[guide] docx upload failed:', err.message));
     } catch (err) {
       console.error('interview guide generation error:', err);
       await client.chat.postMessage({
@@ -124,14 +130,20 @@ function register(app) {
       // Update stored guide
       await updateReq(req_id, { interview_guide: guide });
 
-      // Upload regenerated guide as a downloadable DOCX
-      const docxBuffer = await textToDocxBuffer(guide);
-      await client.files.uploadV2({
-        channel_id: body.user.id,
-        filename: `interview-guide-${(req.role_title || 'role').replace(/\s+/g, '-').toLowerCase()}.docx`,
-        file: docxBuffer,
-        initial_comment: `📋 *Regenerated Interview Guide: ${req.role_title}*`,
+      // Post full guide as plain text so requester sees it immediately
+      await client.chat.postMessage({
+        channel: body.user.id,
+        text: `📋 *Regenerated Interview Guide: ${req.role_title}*\n\n${guide}`,
       });
+      // Also upload DOCX for download
+      textToDocxBuffer(guide).then((buf) =>
+        client.files.uploadV2({
+          channel_id: body.user.id,
+          filename: `interview-guide-${(req.role_title || 'role').replace(/\s+/g, '-').toLowerCase()}.docx`,
+          file: buf,
+          initial_comment: `⬇️ Download the guide as a .docx`,
+        })
+      ).catch((err) => console.error('[guide] docx upload failed:', err.message));
 
       await client.views.update({
         view_id: viewId,
