@@ -54,13 +54,6 @@ async function routeToRecruiter(client, req) {
           text: `*Job Description:*\n${req.job_description || '_No description provided_'}`,
         },
       },
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `*Interview Guide:*\n${req.interview_guide || '_No guide yet_'}`,
-        },
-      },
     ],
   });
 }

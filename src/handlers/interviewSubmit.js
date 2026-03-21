@@ -83,9 +83,12 @@ function register(app) {
 
       await updateReq(req_id, { interview_guide: guide });
 
-      await client.chat.postMessage({
-        channel: body.user.id,
-        text: `📋 *Interview Guide: ${req.role_title}*\n\n${guide}`,
+      // Upload as a downloadable file instead of pasting the full text
+      await client.files.uploadV2({
+        channel_id: body.user.id,
+        filename: `interview-guide-${(req.role_title || 'role').replace(/\s+/g, '-').toLowerCase()}.txt`,
+        content: guide,
+        initial_comment: `📋 *Interview Guide: ${req.role_title}* — download or copy from the file below.`,
       });
     } catch (err) {
       console.error('interview guide generation error:', err);
@@ -119,10 +122,12 @@ function register(app) {
       // Update stored guide
       await updateReq(req_id, { interview_guide: guide });
 
-      // Re-DM the new guide
-      await client.chat.postMessage({
-        channel: body.user.id,
-        text: `📋 *Regenerated Interview Guide: ${req.role_title}*\n\n${guide}`,
+      // Upload regenerated guide as a downloadable file
+      await client.files.uploadV2({
+        channel_id: body.user.id,
+        filename: `interview-guide-${(req.role_title || 'role').replace(/\s+/g, '-').toLowerCase()}.txt`,
+        content: guide,
+        initial_comment: `📋 *Regenerated Interview Guide: ${req.role_title}*`,
       });
 
       await client.views.update({
@@ -166,7 +171,7 @@ function register(app) {
 
       // ── Post-approval fanout ─────────────────────────────────────────────
 
-      // 1. DM talent coordinator with full summary
+      // 1. DM talent coordinator with summary + guide as file
       await dmCoordinator(
         client,
         `🧚 *New Approved Req Ready for Launch — ${req.role_title}* (\`${req_id}\`)\n\n` +
@@ -174,10 +179,17 @@ function register(app) {
           `*Salary Range:* ${req.salary_range} | *Location:* ${req.location}\n` +
           `*Hiring Manager:* <@${req.hiring_manager_slack_id}>\n` +
           `*Requested by:* <@${req.requester_slack_id}>\n\n` +
-          `*Job Description:*\n${req.job_description || '_None_'}\n\n` +
-          `*Interview Guide:*\n${req.interview_guide || '_Not generated yet_'}` +
+          `*Job Description:*\n${req.job_description || '_None_'}` +
           (notes ? `\n\n*Requester Notes:*\n${notes}` : '')
       );
+      if (req.interview_guide) {
+        await client.files.uploadV2({
+          channel_id: process.env.SLACK_USER_TALENT_COORDINATOR,
+          filename: `interview-guide-${req_id}.txt`,
+          content: req.interview_guide,
+          initial_comment: `📋 Interview guide for *${req.role_title}*`,
+        }).catch((err) => console.error('[coordinator] guide upload failed:', err.message));
+      }
 
       // 2. Route to recruiter
       await routeToRecruiter(client, req);
