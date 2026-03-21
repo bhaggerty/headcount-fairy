@@ -15,6 +15,9 @@ function register(app) {
       const department = v.department?.value?.selected_option?.value || '';
       const level = (v.level?.value?.selected_options || []).map((o) => o.value);
 
+      // Show loading state immediately
+      await client.views.update({ view_id: viewId, view: buildReqForm({ loading: true }) }).catch(() => {});
+
       const jd = await generateJobDescription({ roleTitle, department, level });
 
       // Try to pre-fill the modal; if the view is gone, DM the JD instead

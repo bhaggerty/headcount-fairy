@@ -1,4 +1,4 @@
-function buildReqForm({ jd = '', error = null } = {}) {
+function buildReqForm({ jd = '', error = null, loading = false } = {}) {
   const blocks = [
     {
       type: 'input',
@@ -91,6 +91,14 @@ function buildReqForm({ jd = '', error = null } = {}) {
       },
     },
   ];
+
+  if (loading) {
+    blocks.push({
+      type: 'section',
+      block_id: 'loading_banner',
+      text: { type: 'mrkdwn', text: '🪄 _Generating your job description... hang tight!_' },
+    });
+  }
 
   if (error) {
     blocks.push({

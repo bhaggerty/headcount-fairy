@@ -108,62 +108,33 @@ function buildInterviewScreen1({ req_id }) {
   };
 }
 
-function buildInterviewScreen2({ metadata, error = null }) {
-  const metaStr =
-    typeof metadata === 'string' ? metadata : JSON.stringify(metadata);
-
-  const blocks = [];
-
-  if (error) {
-    blocks.push({
-      type: 'section',
-      block_id: 'error_banner',
-      text: { type: 'mrkdwn', text: `:warning: ${error}` },
-    });
-  } else {
-    blocks.push({
-      type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: '✅ *Your interview guide has been generated!*\nCheck your DMs — the full guide has been sent to you for review.',
-      },
-    });
-  }
-
-  blocks.push({
-    type: 'actions',
-    block_id: 'screen2_actions',
-    elements: [
-      {
-        type: 'button',
-        text: { type: 'plain_text', text: '🔄 Regenerate Guide' },
-        action_id: 'regenerate_guide',
-      },
-    ],
-  });
-
-  blocks.push({
-    type: 'input',
-    block_id: 'notes',
-    optional: true,
-    label: { type: 'plain_text', text: 'Any notes or adjustments? (optional)' },
-    element: {
-      type: 'plain_text_input',
-      action_id: 'value',
-      multiline: true,
-      placeholder: { type: 'plain_text', text: 'e.g. Skip panel 2 for this candidate level, focus on X…' },
-    },
-  });
-
+function buildInterviewSubmitModal({ req_id }) {
   return {
     type: 'modal',
     callback_id: 'interview_plan_submit',
-    private_metadata: metaStr,
-    title: { type: 'plain_text', text: '📋 Interview Plan' },
-    submit: { type: 'plain_text', text: '✨ Submit Interview Plan' },
-    close: { type: 'plain_text', text: 'Back' },
-    blocks,
+    private_metadata: JSON.stringify({ req_id }),
+    title: { type: 'plain_text', text: '📋 Submit Plan' },
+    submit: { type: 'plain_text', text: 'Submit Plan' },
+    close: { type: 'plain_text', text: 'Cancel' },
+    blocks: [
+      {
+        type: 'section',
+        text: { type: 'mrkdwn', text: "✅ Ready to submit? Add any notes below, then hit *Submit Plan*." },
+      },
+      {
+        type: 'input',
+        block_id: 'notes',
+        optional: true,
+        label: { type: 'plain_text', text: 'Notes (optional)' },
+        element: {
+          type: 'plain_text_input',
+          action_id: 'value',
+          multiline: true,
+          placeholder: { type: 'plain_text', text: 'e.g. Skip panel 2 for junior candidates…' },
+        },
+      },
+    ],
   };
 }
 
-module.exports = { buildInterviewScreen1, buildInterviewScreen2 };
+module.exports = { buildInterviewScreen1, buildInterviewSubmitModal };

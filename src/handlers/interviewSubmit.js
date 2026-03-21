@@ -1,4 +1,4 @@
-const { buildInterviewScreen2 } = require('../views/interviewForm');
+const { buildInterviewScreen1, buildInterviewSubmitModal } = require('../views/interviewForm');
 const { updateReq, getReq } = require('../services/persistence');
 const { generateInterviewGuide } = require('../services/openai');
 const { dmCoordinator, dmCoordinatorError, routeToRecruiter } = require('../services/notifications');
@@ -59,17 +59,88 @@ async function buildPanelsForAI(client, screen1) {
   return { phoneScreeners, panels };
 }
 
+// Open (or find) the DM channel with a user — files.uploadV2 needs a D... channel ID
+async function getDmChannelId(client, userId) {
+  const result = await client.conversations.open({ users: userId });
+  return result.channel.id;
+}
+
+// Post full guide as readable DM + action buttons + DOCX upload
+async function postGuideToDM(client, userId, req, guide) {
+  const dmChannelId = await getDmChannelId(client, userId);
+
+  await client.chat.postMessage({
+    channel: dmChannelId,
+    text: `📋 *Interview Guide: ${req.role_title}*\n\n${guide}`,
+  });
+
+  await client.chat.postMessage({
+    channel: dmChannelId,
+    text: 'Review the guide above, then:',
+    blocks: [
+      {
+        type: 'section',
+        text: { type: 'mrkdwn', text: 'Happy with the guide? Submit the plan, or regenerate if you want a new version.' },
+      },
+      {
+        type: 'actions',
+        elements: [
+          {
+            type: 'button',
+            text: { type: 'plain_text', text: '✅ Submit Interview Plan' },
+            action_id: 'open_interview_submit_modal',
+            style: 'primary',
+            value: JSON.stringify({ req_id: req.req_id }),
+          },
+          {
+            type: 'button',
+            text: { type: 'plain_text', text: '🔄 Regenerate Guide' },
+            action_id: 'regenerate_guide',
+            value: JSON.stringify({ req_id: req.req_id }),
+          },
+        ],
+      },
+    ],
+  });
+
+  // DOCX upload (non-fatal, fire and forget)
+  textToDocxBuffer(guide).then((buf) =>
+    client.files.uploadV2({
+      channel_id: dmChannelId,
+      filename: `interview-guide-${(req.role_title || 'role').replace(/\s+/g, '-').toLowerCase()}.docx`,
+      file: buf,
+      initial_comment: '⬇️ Download as .docx',
+    })
+  ).catch((err) => console.error('[guide] docx upload failed:', err.message));
+}
+
 function register(app) {
-  // ── Screen 1 → Screen 2: push immediately, generate guide async ──────────
+  // ── Screen 1 submitted: clear modal, generate guide, DM to requester ─────
   app.view('interview_screen_1', async ({ ack, body, view, client }) => {
     const { req_id } = JSON.parse(view.private_metadata);
     const screen1 = extractScreen1(view.state.values);
-    const metadata = { req_id, ...screen1 };
+    const userId = body.user.id;
 
-    // Push screen 2 immediately — Slack requires a response within 3s
-    await ack({ response_action: 'push', view: buildInterviewScreen2({ metadata }) });
+    // Clear the modal immediately so user can see DMs
+    await ack({ response_action: 'clear' });
 
-    // Generate guide in the background after ack
+    // Save panel structure to DynamoDB right away
+    await updateReq(req_id, {
+      phone_screeners: screen1.phone_screeners,
+      panel_1_title: screen1.panel_1_title,
+      panel_1_interviewers: screen1.panel_1_interviewers,
+      panel_2_title: screen1.panel_2_title,
+      panel_2_interviewers: screen1.panel_2_interviewers,
+      panel_3_title: screen1.panel_3_title,
+      panel_3_interviewers: screen1.panel_3_interviewers,
+    }).catch(() => {});
+
+    // Tell user we're on it
+    await client.chat.postMessage({
+      channel: userId,
+      text: '🧚 Generating your interview guide... hang tight!',
+    }).catch(() => {});
+
     try {
       const req = await getReq(req_id);
       const { phoneScreeners, panels } = await buildPanelsForAI(client, screen1);
@@ -83,41 +154,64 @@ function register(app) {
       });
 
       await updateReq(req_id, { interview_guide: guide });
-
-      // Post full guide as plain text so requester sees it immediately
-      await client.chat.postMessage({
-        channel: body.user.id,
-        text: `📋 *Interview Guide: ${req.role_title}*\n\n${guide}`,
-      });
-      // Also upload as DOCX for download
-      textToDocxBuffer(guide).then((buf) =>
-        client.files.uploadV2({
-          channel_id: body.user.id,
-          filename: `interview-guide-${(req.role_title || 'role').replace(/\s+/g, '-').toLowerCase()}.docx`,
-          file: buf,
-          initial_comment: `⬇️ Download the guide as a .docx`,
-        })
-      ).catch((err) => console.error('[guide] docx upload failed:', err.message));
+      await postGuideToDM(client, userId, req, guide);
     } catch (err) {
       console.error('interview guide generation error:', err);
       await client.chat.postMessage({
-        channel: body.user.id,
-        text: `⚠️ Failed to generate interview guide: ${err.message}. Use the Regenerate button in the modal.`,
+        channel: userId,
+        text: `⚠️ Failed to generate interview guide: ${err.message}`,
+      }).catch(() => {});
+      // Still show submit button so they can proceed
+      const req = await getReq(req_id).catch(() => ({ req_id }));
+      await client.chat.postMessage({
+        channel: userId,
+        text: 'You can still submit the plan or try regenerating:',
+        blocks: [
+          {
+            type: 'actions',
+            elements: [
+              {
+                type: 'button',
+                text: { type: 'plain_text', text: '✅ Submit Interview Plan' },
+                action_id: 'open_interview_submit_modal',
+                style: 'primary',
+                value: JSON.stringify({ req_id }),
+              },
+              {
+                type: 'button',
+                text: { type: 'plain_text', text: '🔄 Try Regenerating' },
+                action_id: 'regenerate_guide',
+                value: JSON.stringify({ req_id }),
+              },
+            ],
+          },
+        ],
       }).catch(() => {});
     }
   });
 
-  // ── Regenerate guide ─────────────────────────────────────────────────────
+  // ── Regenerate guide (DM button) ─────────────────────────────────────────
   app.action('regenerate_guide', async ({ ack, body, client }) => {
     await ack();
-    const viewId = body.view.id;
-    const metaStr = body.view.private_metadata;
+    const { req_id } = JSON.parse(body.actions[0].value);
+    const userId = body.user.id;
+
+    await client.chat.postMessage({
+      channel: userId,
+      text: '🧚 Regenerating your interview guide...',
+    }).catch(() => {});
 
     try {
-      const metadata = JSON.parse(metaStr);
-      const { req_id } = metadata;
       const req = await getReq(req_id);
-      const { phoneScreeners, panels } = await buildPanelsForAI(client, metadata);
+      const { phoneScreeners, panels } = await buildPanelsForAI(client, {
+        phone_screeners: req.phone_screeners || '',
+        panel_1_title: req.panel_1_title || '',
+        panel_1_interviewers: req.panel_1_interviewers || '',
+        panel_2_title: req.panel_2_title || '',
+        panel_2_interviewers: req.panel_2_interviewers || '',
+        panel_3_title: req.panel_3_title || '',
+        panel_3_interviewers: req.panel_3_interviewers || '',
+      });
 
       const guide = await generateInterviewGuide({
         roleTitle: req.role_title,
@@ -127,37 +221,28 @@ function register(app) {
         panels,
       });
 
-      // Update stored guide
       await updateReq(req_id, { interview_guide: guide });
-
-      // Post full guide as plain text so requester sees it immediately
-      await client.chat.postMessage({
-        channel: body.user.id,
-        text: `📋 *Regenerated Interview Guide: ${req.role_title}*\n\n${guide}`,
-      });
-      // Also upload DOCX for download
-      textToDocxBuffer(guide).then((buf) =>
-        client.files.uploadV2({
-          channel_id: body.user.id,
-          filename: `interview-guide-${(req.role_title || 'role').replace(/\s+/g, '-').toLowerCase()}.docx`,
-          file: buf,
-          initial_comment: `⬇️ Download the guide as a .docx`,
-        })
-      ).catch((err) => console.error('[guide] docx upload failed:', err.message));
-
-      await client.views.update({
-        view_id: viewId,
-        view: buildInterviewScreen2({ metadata }),
-      });
+      await postGuideToDM(client, userId, req, guide);
     } catch (err) {
       console.error('regenerate_guide error:', err);
-      await client.views.update({
-        view_id: viewId,
-        view: buildInterviewScreen2({
-          metadata: metaStr,
-          error: `Regeneration failed: ${err.message}`,
-        }),
+      await client.chat.postMessage({
+        channel: userId,
+        text: `⚠️ Regeneration failed: ${err.message}`,
+      }).catch(() => {});
+    }
+  });
+
+  // ── Open submit modal (from DM button) ───────────────────────────────────
+  app.action('open_interview_submit_modal', async ({ ack, body, client }) => {
+    await ack();
+    try {
+      const { req_id } = JSON.parse(body.actions[0].value);
+      await client.views.open({
+        trigger_id: body.trigger_id,
+        view: buildInterviewSubmitModal({ req_id }),
       });
+    } catch (err) {
+      console.error('open_interview_submit_modal error:', err);
     }
   });
 
@@ -165,28 +250,17 @@ function register(app) {
   app.view('interview_plan_submit', async ({ ack, body, view, client }) => {
     await ack();
     try {
-      const metadata = JSON.parse(view.private_metadata);
-      const { req_id } = metadata;
+      const { req_id } = JSON.parse(view.private_metadata);
       const notes = view.state.values.notes?.value?.value || '';
       const userId = body.user.id;
 
-      // Persist panel structure and any notes
-      await updateReq(req_id, {
-        phone_screeners: metadata.phone_screeners || '',
-        panel_1_title: metadata.panel_1_title || '',
-        panel_1_interviewers: metadata.panel_1_interviewers || '',
-        panel_2_title: metadata.panel_2_title || '',
-        panel_2_interviewers: metadata.panel_2_interviewers || '',
-        panel_3_title: metadata.panel_3_title || '',
-        panel_3_interviewers: metadata.panel_3_interviewers || '',
-        ...(notes && { interview_notes: notes }),
-      });
+      if (notes) {
+        await updateReq(req_id, { interview_notes: notes });
+      }
 
       const req = await getReq(req_id);
 
-      // ── Post-approval fanout ─────────────────────────────────────────────
-
-      // 1. DM talent coordinator with summary + guide as file
+      // 1. DM talent coordinator with summary
       await dmCoordinator(
         client,
         `🧚 *New Approved Req Ready for Launch — ${req.role_title}* (\`${req_id}\`)\n\n` +
@@ -197,27 +271,32 @@ function register(app) {
           `*Job Description:*\n${req.job_description || '_None_'}` +
           (notes ? `\n\n*Requester Notes:*\n${notes}` : '')
       );
+
+      // Upload guide to coordinator as DOCX
       if (req.interview_guide) {
-        textToDocxBuffer(req.interview_guide).then((buf) =>
-          client.files.uploadV2({
-            channel_id: process.env.SLACK_USER_TALENT_COORDINATOR,
-            filename: `interview-guide-${req_id}.docx`,
-            file: buf,
-            initial_comment: `📋 Interview guide for *${req.role_title}*`,
-          })
-        ).catch((err) => console.error('[coordinator] guide upload failed:', err.message));
+        getDmChannelId(client, process.env.SLACK_USER_TALENT_COORDINATOR)
+          .then((dmId) => textToDocxBuffer(req.interview_guide).then((buf) =>
+            client.files.uploadV2({
+              channel_id: dmId,
+              filename: `interview-guide-${req_id}.docx`,
+              file: buf,
+              initial_comment: `📋 Interview guide for *${req.role_title}*`,
+            })
+          ))
+          .catch((err) => console.error('[coordinator] guide upload failed:', err.message));
       }
 
       // 2. Route to recruiter
       await routeToRecruiter(client, req);
 
-      // 3. Open Ashby req and publish (failure does NOT block rest of flow)
+      // 3. Open Ashby req (non-fatal)
       try {
         const jobId = await openAshbyReq(req);
         await publishToWebsite(jobId);
         await updateReq(req_id, { ashby_job_id: jobId });
+        console.log(`[ashby] opened job ${jobId} for req ${req_id}`);
       } catch (ashbyErr) {
-        console.error('Ashby error (non-fatal):', ashbyErr);
+        console.error('[ashby] error (non-fatal):', ashbyErr.message, JSON.stringify(ashbyErr.response?.data));
         await dmCoordinatorError(client, ashbyErr, req).catch(() => {});
       }
 
