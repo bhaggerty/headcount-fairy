@@ -59,12 +59,17 @@ async function buildPanelsForAI(client, screen1) {
 }
 
 function register(app) {
-  // ── Screen 1 → Screen 2: generate guide, store it, DM to requester ──────
-  app.action('interview_next_screen', async ({ ack, body, client }) => {
-    await ack();
+  // ── Screen 1 → Screen 2: push immediately, generate guide async ──────────
+  app.view('interview_screen_1', async ({ ack, body, view, client }) => {
+    const { req_id } = JSON.parse(view.private_metadata);
+    const screen1 = extractScreen1(view.state.values);
+    const metadata = { req_id, ...screen1 };
+
+    // Push screen 2 immediately — Slack requires a response within 3s
+    await ack({ response_action: 'push', view: buildInterviewScreen2({ metadata }) });
+
+    // Generate guide in the background after ack
     try {
-      const { req_id } = JSON.parse(body.view.private_metadata);
-      const screen1 = extractScreen1(body.view.state.values);
       const req = await getReq(req_id);
       const { phoneScreeners, panels } = await buildPanelsForAI(client, screen1);
 
@@ -76,34 +81,18 @@ function register(app) {
         panels,
       });
 
-      // Store guide in DynamoDB immediately
       await updateReq(req_id, { interview_guide: guide });
 
-      // DM the full guide to the requester for review
       await client.chat.postMessage({
         channel: body.user.id,
         text: `📋 *Interview Guide: ${req.role_title}*\n\n${guide}`,
       });
-
-      const metadata = { req_id, ...screen1 };
-
-      await client.views.push({
-        trigger_id: body.trigger_id,
-        view: buildInterviewScreen2({ metadata }),
-      });
     } catch (err) {
-      console.error('interview_next_screen error:', err);
-      try {
-        const { req_id } = JSON.parse(body.view.private_metadata);
-        const screen1 = extractScreen1(body.view.state.values);
-        await client.views.push({
-          trigger_id: body.trigger_id,
-          view: buildInterviewScreen2({
-            metadata: { req_id, ...screen1 },
-            error: `Failed to generate guide: ${err.message}. Please try regenerating.`,
-          }),
-        });
-      } catch (_) {}
+      console.error('interview guide generation error:', err);
+      await client.chat.postMessage({
+        channel: body.user.id,
+        text: `⚠️ Failed to generate interview guide: ${err.message}. Use the Regenerate button in the modal.`,
+      }).catch(() => {});
     }
   });
 

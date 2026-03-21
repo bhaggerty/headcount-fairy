@@ -4,6 +4,7 @@ function buildInterviewScreen1({ req_id }) {
     callback_id: 'interview_screen_1',
     private_metadata: JSON.stringify({ req_id }),
     title: { type: 'plain_text', text: '📋 Interview Plan' },
+    submit: { type: 'plain_text', text: '→ Generate Interview Guide' },
     close: { type: 'plain_text', text: 'Close' },
     blocks: [
       {
@@ -103,18 +104,6 @@ function buildInterviewScreen1({ req_id }) {
         },
       },
       { type: 'divider' },
-      {
-        type: 'actions',
-        block_id: 'screen1_actions',
-        elements: [
-          {
-            type: 'button',
-            text: { type: 'plain_text', text: '→ Next: Generate Interview Guide' },
-            action_id: 'interview_next_screen',
-            style: 'primary',
-          },
-        ],
-      },
     ],
   };
 }
