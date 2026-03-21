@@ -119,7 +119,7 @@ function buildInterviewScreen1({ req_id }) {
   };
 }
 
-function buildInterviewScreen2({ metadata, guide, error = null }) {
+function buildInterviewScreen2({ metadata, error = null }) {
   const metaStr =
     typeof metadata === 'string' ? metadata : JSON.stringify(metadata);
 
@@ -131,27 +131,15 @@ function buildInterviewScreen2({ metadata, guide, error = null }) {
       block_id: 'error_banner',
       text: { type: 'mrkdwn', text: `:warning: ${error}` },
     });
+  } else {
+    blocks.push({
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: '✅ *Your interview guide has been generated!*\nCheck your DMs — the full guide has been sent to you for review.',
+      },
+    });
   }
-
-  blocks.push({
-    type: 'section',
-    text: {
-      type: 'mrkdwn',
-      text: '*Step 2: Review & Edit Your Interview Guide* 🪄\nThe fairy has crafted a guide based on your panels. Edit freely!',
-    },
-  });
-
-  blocks.push({
-    type: 'input',
-    block_id: 'interview_guide',
-    label: { type: 'plain_text', text: 'Interview Guide' },
-    element: {
-      type: 'plain_text_input',
-      action_id: 'value',
-      multiline: true,
-      initial_value: guide || '',
-    },
-  });
 
   blocks.push({
     type: 'actions',
@@ -163,6 +151,19 @@ function buildInterviewScreen2({ metadata, guide, error = null }) {
         action_id: 'regenerate_guide',
       },
     ],
+  });
+
+  blocks.push({
+    type: 'input',
+    block_id: 'notes',
+    optional: true,
+    label: { type: 'plain_text', text: 'Any notes or adjustments? (optional)' },
+    element: {
+      type: 'plain_text_input',
+      action_id: 'value',
+      multiline: true,
+      placeholder: { type: 'plain_text', text: 'e.g. Skip panel 2 for this candidate level, focus on X…' },
+    },
   });
 
   return {

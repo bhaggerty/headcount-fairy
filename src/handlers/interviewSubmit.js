@@ -4,6 +4,28 @@ const { generateInterviewGuide } = require('../services/openai');
 const { dmCoordinator, dmCoordinatorError, routeToRecruiter } = require('../services/notifications');
 const { openAshbyReq, publishToWebsite } = require('../services/ashby');
 
+// Resolve a comma-separated string of Slack user IDs to display names
+async function resolveNames(client, idString) {
+  if (!idString) return [];
+  const ids = idString.split(',').filter(Boolean);
+  const names = await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const res = await client.users.info({ user: id });
+        return (
+          res.user?.profile?.display_name_normalized ||
+          res.user?.profile?.display_name ||
+          res.user?.real_name ||
+          id
+        );
+      } catch {
+        return id;
+      }
+    })
+  );
+  return names;
+}
+
 // Extract screen 1 values from view.state.values
 function extractScreen1(stateValues) {
   const v = stateValues;
@@ -18,54 +40,70 @@ function extractScreen1(stateValues) {
   };
 }
 
-function buildPanelsForAI(screen1) {
-  return [
-    { title: screen1.panel_1_title },
-    { title: screen1.panel_2_title },
-    { title: screen1.panel_3_title },
-  ].filter((p) => p.title);
+// Build panels array with resolved names for the AI
+async function buildPanelsForAI(client, screen1) {
+  const phoneScreeners = await resolveNames(client, screen1.phone_screeners);
+  const panels = await Promise.all(
+    [
+      { title: screen1.panel_1_title, idString: screen1.panel_1_interviewers },
+      { title: screen1.panel_2_title, idString: screen1.panel_2_interviewers },
+      { title: screen1.panel_3_title, idString: screen1.panel_3_interviewers },
+    ]
+      .filter((p) => p.title)
+      .map(async (p) => ({
+        title: p.title,
+        interviewers: await resolveNames(client, p.idString),
+      }))
+  );
+  return { phoneScreeners, panels };
 }
 
 function register(app) {
-  // ── Screen 1 → Screen 2: generate guide and push new view ───────────────
+  // ── Screen 1 → Screen 2: generate guide, store it, DM to requester ──────
   app.action('interview_next_screen', async ({ ack, body, client }) => {
     await ack();
     try {
       const { req_id } = JSON.parse(body.view.private_metadata);
       const screen1 = extractScreen1(body.view.state.values);
       const req = await getReq(req_id);
+      const { phoneScreeners, panels } = await buildPanelsForAI(client, screen1);
 
       const guide = await generateInterviewGuide({
         roleTitle: req.role_title,
         department: req.department,
         level: req.level ? req.level.split(',') : [],
-        panels: buildPanelsForAI(screen1),
+        phoneScreeners,
+        panels,
+      });
+
+      // Store guide in DynamoDB immediately
+      await updateReq(req_id, { interview_guide: guide });
+
+      // DM the full guide to the requester for review
+      await client.chat.postMessage({
+        channel: body.user.id,
+        text: `📋 *Interview Guide: ${req.role_title}*\n\n${guide}`,
       });
 
       const metadata = { req_id, ...screen1 };
 
       await client.views.push({
         trigger_id: body.trigger_id,
-        view: buildInterviewScreen2({ metadata, guide }),
+        view: buildInterviewScreen2({ metadata }),
       });
     } catch (err) {
       console.error('interview_next_screen error:', err);
-      // Show error in a new view push if possible
       try {
         const { req_id } = JSON.parse(body.view.private_metadata);
         const screen1 = extractScreen1(body.view.state.values);
-        const metadata = { req_id, ...screen1 };
         await client.views.push({
           trigger_id: body.trigger_id,
           view: buildInterviewScreen2({
-            metadata,
-            guide: '',
-            error: `Failed to generate guide: ${err.message}. You can write it manually.`,
+            metadata: { req_id, ...screen1 },
+            error: `Failed to generate guide: ${err.message}. Please try regenerating.`,
           }),
         });
-      } catch (_) {
-        // swallow if push also fails
-      }
+      } catch (_) {}
     }
   });
 
@@ -79,17 +117,28 @@ function register(app) {
       const metadata = JSON.parse(metaStr);
       const { req_id } = metadata;
       const req = await getReq(req_id);
+      const { phoneScreeners, panels } = await buildPanelsForAI(client, metadata);
 
       const guide = await generateInterviewGuide({
         roleTitle: req.role_title,
         department: req.department,
         level: req.level ? req.level.split(',') : [],
-        panels: buildPanelsForAI(metadata),
+        phoneScreeners,
+        panels,
+      });
+
+      // Update stored guide
+      await updateReq(req_id, { interview_guide: guide });
+
+      // Re-DM the new guide
+      await client.chat.postMessage({
+        channel: body.user.id,
+        text: `📋 *Regenerated Interview Guide: ${req.role_title}*\n\n${guide}`,
       });
 
       await client.views.update({
         view_id: viewId,
-        view: buildInterviewScreen2({ metadata, guide }),
+        view: buildInterviewScreen2({ metadata }),
       });
     } catch (err) {
       console.error('regenerate_guide error:', err);
@@ -97,7 +146,6 @@ function register(app) {
         view_id: viewId,
         view: buildInterviewScreen2({
           metadata: metaStr,
-          guide: body.view.state.values?.interview_guide?.value?.value || '',
           error: `Regeneration failed: ${err.message}`,
         }),
       });
@@ -110,10 +158,10 @@ function register(app) {
     try {
       const metadata = JSON.parse(view.private_metadata);
       const { req_id } = metadata;
-      const interviewGuide = view.state.values.interview_guide.value.value;
+      const notes = view.state.values.notes?.value?.value || '';
       const userId = body.user.id;
 
-      // Persist all interview data to sheet
+      // Persist panel structure and any notes
       await updateReq(req_id, {
         phone_screeners: metadata.phone_screeners || '',
         panel_1_title: metadata.panel_1_title || '',
@@ -122,14 +170,14 @@ function register(app) {
         panel_2_interviewers: metadata.panel_2_interviewers || '',
         panel_3_title: metadata.panel_3_title || '',
         panel_3_interviewers: metadata.panel_3_interviewers || '',
-        interview_guide: interviewGuide,
+        ...(notes && { interview_notes: notes }),
       });
 
       const req = await getReq(req_id);
 
       // ── Post-approval fanout ─────────────────────────────────────────────
 
-      // 1\. DM talent coordinator with full summary
+      // 1. DM talent coordinator with full summary
       await dmCoordinator(
         client,
         `🧚 *New Approved Req Ready for Launch — ${req.role_title}* (\`${req_id}\`)\n\n` +
@@ -138,11 +186,12 @@ function register(app) {
           `*Hiring Manager:* <@${req.hiring_manager_slack_id}>\n` +
           `*Requested by:* <@${req.requester_slack_id}>\n\n` +
           `*Job Description:*\n${req.job_description || '_None_'}\n\n` +
-          `*Interview Guide:*\n${interviewGuide}`
+          `*Interview Guide:*\n${req.interview_guide || '_Not generated yet_'}` +
+          (notes ? `\n\n*Requester Notes:*\n${notes}` : '')
       );
 
       // 2. Route to recruiter
-      await routeToRecruiter(client, { ...req, interview_guide: interviewGuide });
+      await routeToRecruiter(client, req);
 
       // 3. Open Ashby req and publish (failure does NOT block rest of flow)
       try {
@@ -157,7 +206,7 @@ function register(app) {
       // 4. Confirm to requester
       await client.chat.postMessage({
         channel: userId,
-        text: `🚀 Interview plan submitted! The role is now being opened in Ashby and your recruiter has been notified.`,
+        text: `🚀 Interview plan submitted! The role is being opened in Ashby and your recruiter has been notified.`,
       });
     } catch (err) {
       console.error('interview_plan_submit error:', err);
