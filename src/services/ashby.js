@@ -20,7 +20,8 @@ async function openAshbyReq(req) {
     title: req.role_title,
     description: req.job_description || '',
   });
-  return data.results?.id || data.id;
+  console.log('[ashby] job.create response:', JSON.stringify(data));
+  return data.results?.id || data.result?.id || data.id;
 }
 
 // Transitions the job from Draft → Open (publishes it)
