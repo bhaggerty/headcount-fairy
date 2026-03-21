@@ -4,7 +4,7 @@ function buildInterviewScreen1({ req_id }) {
     callback_id: 'interview_screen_1',
     private_metadata: JSON.stringify({ req_id }),
     title: { type: 'plain_text', text: '📋 Interview Plan' },
-    submit: { type: 'plain_text', text: '→ Generate Interview Guide' },
+    submit: { type: 'plain_text', text: 'Generate Guide' },
     close: { type: 'plain_text', text: 'Close' },
     blocks: [
       {
