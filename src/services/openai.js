@@ -1,11 +1,25 @@
-const Anthropic = require('@anthropic-ai/sdk');
+const axios = require('axios');
 
-function getClient() {
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+async function callAnthropic(prompt, maxTokens) {
+  const { data } = await axios.post(
+    'https://api.anthropic.com/v1/messages',
+    {
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: maxTokens,
+      messages: [{ role: 'user', content: prompt }],
+    },
+    {
+      headers: {
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+    }
+  );
+  return data.content[0].text;
 }
 
-async function generateJobDescription({ roleTitle, department, level, hiringManager }) {
-  const client = getClient();
+async function generateJobDescription({ roleTitle, department, level }) {
   const levels = Array.isArray(level) ? level.join(', ') : level;
   const prompt = `You are writing a job description for ConductorOne. Match the company's voice and format exactly as shown in the example below.
 
@@ -44,17 +58,10 @@ TONE GUIDELINES:
 - Be specific about the actual work, not vague platitudes
 - Match the energy of a fast-moving, high-growth startup`;
 
-  const message = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1200,
-    messages: [{ role: 'user', content: prompt }],
-  });
-
-  return message.content[0].text;
+  return callAnthropic(prompt, 1200);
 }
 
 async function generateInterviewGuide({ roleTitle, department, level, phoneScreeners, panels }) {
-  const client = getClient();
   const levels = Array.isArray(level) ? level.join(', ') : level;
 
   const panelDetails = (panels || [])
@@ -124,15 +131,9 @@ Suggested Questions:
 
 ---
 
-TONE: Professional but direct. Questions should be behavioral ("Tell me about a time...") and situational. Scorecard items should be observable evidence statements ("Can give an example of...", "Demonstrates..."). Tailor everything tightly to the role — a ${roleTitle} guide should look nothing like a generic interview guide.`;
+TONE: Professional but direct. Questions should be behavioral ("Tell me about a time...") and situational. Scorecard items should be observable evidence statements ("Can give an example of...", "Demonstrates..."). Tailor everything tightly to the role.`;
 
-  const message = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 3000,
-    messages: [{ role: 'user', content: prompt }],
-  });
-
-  return message.content[0].text;
+  return callAnthropic(prompt, 3000);
 }
 
 module.exports = { generateJobDescription, generateInterviewGuide };
