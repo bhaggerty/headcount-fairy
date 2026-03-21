@@ -7,20 +7,42 @@ function getClient() {
 async function generateJobDescription({ roleTitle, department, level, hiringManager }) {
   const client = getClient();
   const levels = Array.isArray(level) ? level.join(', ') : level;
-  const prompt = `You are an expert technical recruiter. Write a compelling, inclusive job description for the following role.
+  const prompt = `You are writing a job description for ConductorOne. Match the company's voice and format exactly as shown in the example below.
 
-Role: ${roleTitle || 'Not specified'}
+ROLE TO WRITE: ${roleTitle || 'Not specified'}
 Department: ${department || 'Not specified'}
 Level: ${levels || 'Not specified'}
-Hiring Manager: ${hiringManager || 'Not specified'}
 
-Format the job description with these exact sections:
-## About the Role
-## What You'll Do
-## What We're Looking For
-## Bonus Points
+FORMAT TO FOLLOW (use this exact structure):
 
-Keep it warm, engaging, and specific. Avoid buzzwords and generic phrases. Aim for 400–600 words total.`;
+---
+ConductorOne is the first AI-native identity security platform that protects every identity: human, non-human, and AI. With powerful automation, platform-level AI, and out-of-the-box connectors, it centralizes access visibility, enforces fine-grained controls, enables just-in-time access, and automates user access reviews across all apps. It's easy to use, quick to deploy, and trusted by enterprises like DigitalOcean, Instacart, Ramp, and Zscaler.
+
+[2–3 sentences specific to this role: what the person will build/own, who they'll work with, what impact they'll have. Use "you'll" not "the candidate will". Be specific to the role.]
+
+What you'll do:
+- [responsibility]
+- [responsibility]
+- [5–8 bullets total, specific to this role]
+
+You would be an excellent candidate if…
+- [qualification]
+- [qualification]
+- [5–8 bullets total]
+- You embody ConductorOne's values: Earn the Customer's Trust, Embrace Change, Practice Compassionate Candor, and Be the Conductor.
+
+Extra Credit if…
+- [nice-to-have]
+- [3–5 bullets total]
+
+ConductorOne, Inc. is an Equal Employment Opportunity Employer. All qualified applicants will receive consideration for employment without regard to race, color, creed, religion, sex, sexual orientation, national origin or nationality, ancestry, age, disability, gender identity or expression, marital status, veteran status or any other category protected by law.
+---
+
+TONE GUIDELINES:
+- Confident and direct but warm — write "you'll" not "the successful candidate will"
+- Product-minded language, avoid generic corporate buzzwords
+- Be specific about the actual work, not vague platitudes
+- Match the energy of a fast-moving, high-growth startup`;
 
   const response = await client.chat.completions.create({
     model: 'gpt-4o',
