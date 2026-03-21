@@ -1,22 +1,19 @@
-const axios = require('axios');
+const { BedrockRuntimeClient, ConverseCommand } = require('@aws-sdk/client-bedrock-runtime');
 
-async function callAnthropic(prompt, maxTokens) {
-  const { data } = await axios.post(
-    'https://api.anthropic.com/v1/messages',
-    {
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: maxTokens,
-      messages: [{ role: 'user', content: prompt }],
-    },
-    {
-      headers: {
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-    }
-  );
-  return data.content[0].text;
+const MODEL_ID = 'anthropic.claude-3-5-haiku-20241022-v1:0';
+
+function getClient() {
+  return new BedrockRuntimeClient({ region: process.env.AWS_REGION || 'us-west-2' });
+}
+
+async function callClaude(prompt, maxTokens) {
+  const client = getClient();
+  const response = await client.send(new ConverseCommand({
+    modelId: MODEL_ID,
+    messages: [{ role: 'user', content: [{ text: prompt }] }],
+    inferenceConfig: { maxTokens },
+  }));
+  return response.output.message.content[0].text;
 }
 
 async function generateJobDescription({ roleTitle, department, level }) {
@@ -58,7 +55,7 @@ TONE GUIDELINES:
 - Be specific about the actual work, not vague platitudes
 - Match the energy of a fast-moving, high-growth startup`;
 
-  return callAnthropic(prompt, 1200);
+  return callClaude(prompt, 1200);
 }
 
 async function generateInterviewGuide({ roleTitle, department, level, phoneScreeners, panels }) {
@@ -133,7 +130,7 @@ Suggested Questions:
 
 TONE: Professional but direct. Questions should be behavioral ("Tell me about a time...") and situational. Scorecard items should be observable evidence statements ("Can give an example of...", "Demonstrates..."). Tailor everything tightly to the role.`;
 
-  return callAnthropic(prompt, 3000);
+  return callClaude(prompt, 3000);
 }
 
 module.exports = { generateJobDescription, generateInterviewGuide };
