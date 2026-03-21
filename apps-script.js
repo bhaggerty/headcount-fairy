@@ -23,10 +23,11 @@ function doPost(e) {
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 
-// Append a new req row (columns B–H)
+// Write starting at column B (col index 2) to align with sheet headers
 function writeReq(req) {
   const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(TAB_NAME);
-  sheet.appendRow([
+  const nextRow = sheet.getLastRow() + 1;
+  sheet.getRange(nextRow, 2, 1, 7).setValues([[
     req.req_id,
     req.department,
     req.role_title,
@@ -34,23 +35,33 @@ function writeReq(req) {
     req.level,
     req.job_description || '',
     req.status,
-  ]);
+  ]]);
   return { success: true };
 }
 
-// Update the Status column (H) for a given req_id
+// Search column B for req_id, update column H (status)
 function updateStatus(reqId, status) {
   const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(TAB_NAME);
-  const colB   = sheet.getRange('B:B').getValues();
+  const colB = sheet.getRange('B:B').getValues();
 
   for (let i = 0; i < colB.length; i++) {
     if (colB[i][0] === reqId) {
-      sheet.getRange(i + 1, 8).setValue(status); // column H = index 8
+      sheet.getRange(i + 1, 8).setValue(status);
       return { success: true };
     }
   }
 
   return { success: false, error: `Req ${reqId} not found` };
+}
+
+// ─── Test ─────────────────────────────────────────────────────────────────────
+function testWrite() {
+  const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(TAB_NAME);
+  const nextRow = sheet.getLastRow() + 1;
+  sheet.getRange(nextRow, 2, 1, 7).setValues([[
+    'TEST-123', 'Engineering', 'Test Role', 'Test Manager', 'Sr.', 'Test JD', 'pending_alex'
+  ]]);
+  Logger.log('Done - check row ' + nextRow);
 }
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
