@@ -9,22 +9,27 @@ function getClient() {
       username: process.env.ASHBY_API_KEY,
       password: '',
     },
+    headers: { 'Content-Type': 'application/json' },
   });
 }
 
+// Creates a job in Ashby and returns the job ID
 async function openAshbyReq(req) {
   const ax = getClient();
-  const { data } = await ax.post('/jobs', {
+  const { data } = await ax.post('/job.create', {
     title: req.role_title,
-    jobPostingTitle: req.role_title,
-    employmentType: 'FullTime',
+    description: req.job_description || '',
   });
-  return data.id || data.job?.id;
+  return data.results?.id || data.id;
 }
 
+// Transitions the job from Draft → Open (publishes it)
 async function publishToWebsite(jobId) {
   const ax = getClient();
-  await ax.post(`/jobs/${jobId}/publish`);
+  await ax.post('/job.setStatus', {
+    jobId,
+    status: 'Open',
+  });
 }
 
 module.exports = { openAshbyReq, publishToWebsite };
