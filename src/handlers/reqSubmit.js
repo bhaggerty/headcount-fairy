@@ -17,16 +17,20 @@ function register(app) {
 
       const jd = await generateJobDescription({ roleTitle, department, level });
 
-      await client.views.update({
-        view_id: viewId,
-        view: buildReqForm({ jd }),
-      });
+      // Try to pre-fill the modal; if the view is gone, DM the JD instead
+      await client.views.update({ view_id: viewId, view: buildReqForm({ jd }) })
+        .catch(() =>
+          client.chat.postMessage({
+            channel: body.user.id,
+            text: `📝 *AI-Generated Job Description for ${roleTitle}:*\n\n${jd}\n\n_Copy this into the form._`,
+          })
+        );
     } catch (err) {
       console.error('AI JD generation failed:', err);
       await client.views.update({
         view_id: viewId,
         view: buildReqForm({ error: `AI generation failed: ${err.message}. You can still write the description manually.` }),
-      });
+      }).catch(() => {});
     }
   });
 

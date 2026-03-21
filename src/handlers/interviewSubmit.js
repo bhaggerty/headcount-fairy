@@ -3,6 +3,7 @@ const { updateReq, getReq } = require('../services/persistence');
 const { generateInterviewGuide } = require('../services/openai');
 const { dmCoordinator, dmCoordinatorError, routeToRecruiter } = require('../services/notifications');
 const { openAshbyReq, publishToWebsite } = require('../services/ashby');
+const { textToDocxBuffer } = require('../services/docx');
 
 // Resolve a comma-separated string of Slack user IDs to display names
 async function resolveNames(client, idString) {
@@ -83,12 +84,13 @@ function register(app) {
 
       await updateReq(req_id, { interview_guide: guide });
 
-      // Upload as a downloadable file instead of pasting the full text
+      // Upload as a downloadable DOCX file
+      const docxBuffer = await textToDocxBuffer(guide);
       await client.files.uploadV2({
         channel_id: body.user.id,
-        filename: `interview-guide-${(req.role_title || 'role').replace(/\s+/g, '-').toLowerCase()}.txt`,
-        content: guide,
-        initial_comment: `📋 *Interview Guide: ${req.role_title}* — download or copy from the file below.`,
+        filename: `interview-guide-${(req.role_title || 'role').replace(/\s+/g, '-').toLowerCase()}.docx`,
+        file: docxBuffer,
+        initial_comment: `📋 *Interview Guide: ${req.role_title}* — download the .docx below.`,
       });
     } catch (err) {
       console.error('interview guide generation error:', err);
@@ -122,11 +124,12 @@ function register(app) {
       // Update stored guide
       await updateReq(req_id, { interview_guide: guide });
 
-      // Upload regenerated guide as a downloadable file
+      // Upload regenerated guide as a downloadable DOCX
+      const docxBuffer = await textToDocxBuffer(guide);
       await client.files.uploadV2({
         channel_id: body.user.id,
-        filename: `interview-guide-${(req.role_title || 'role').replace(/\s+/g, '-').toLowerCase()}.txt`,
-        content: guide,
+        filename: `interview-guide-${(req.role_title || 'role').replace(/\s+/g, '-').toLowerCase()}.docx`,
+        file: docxBuffer,
         initial_comment: `📋 *Regenerated Interview Guide: ${req.role_title}*`,
       });
 
@@ -183,12 +186,14 @@ function register(app) {
           (notes ? `\n\n*Requester Notes:*\n${notes}` : '')
       );
       if (req.interview_guide) {
-        await client.files.uploadV2({
-          channel_id: process.env.SLACK_USER_TALENT_COORDINATOR,
-          filename: `interview-guide-${req_id}.txt`,
-          content: req.interview_guide,
-          initial_comment: `📋 Interview guide for *${req.role_title}*`,
-        }).catch((err) => console.error('[coordinator] guide upload failed:', err.message));
+        textToDocxBuffer(req.interview_guide).then((buf) =>
+          client.files.uploadV2({
+            channel_id: process.env.SLACK_USER_TALENT_COORDINATOR,
+            filename: `interview-guide-${req_id}.docx`,
+            file: buf,
+            initial_comment: `📋 Interview guide for *${req.role_title}*`,
+          })
+        ).catch((err) => console.error('[coordinator] guide upload failed:', err.message));
       }
 
       // 2. Route to recruiter

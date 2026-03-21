@@ -12,6 +12,7 @@
   "description": "",
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1010.0",
+    "docx": "^9.0.0",
     "@aws-sdk/client-dynamodb": "^3.1010.0",
     "@aws-sdk/lib-dynamodb": "^3.1010.0",
     "@slack/bolt": "^4.6.0",
