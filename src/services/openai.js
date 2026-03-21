@@ -1,7 +1,7 @@
-const OpenAI = require('openai');
+const Anthropic = require('@anthropic-ai/sdk');
 
 function getClient() {
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 }
 
 async function generateJobDescription({ roleTitle, department, level, hiringManager }) {
@@ -44,13 +44,13 @@ TONE GUIDELINES:
 - Be specific about the actual work, not vague platitudes
 - Match the energy of a fast-moving, high-growth startup`;
 
-  const response = await client.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [{ role: 'user', content: prompt }],
+  const message = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 1200,
+    messages: [{ role: 'user', content: prompt }],
   });
 
-  return response.choices[0].message.content;
+  return message.content[0].text;
 }
 
 async function generateInterviewGuide({ roleTitle, department, level, phoneScreeners, panels }) {
@@ -126,13 +126,13 @@ Suggested Questions:
 
 TONE: Professional but direct. Questions should be behavioral ("Tell me about a time...") and situational. Scorecard items should be observable evidence statements ("Can give an example of...", "Demonstrates..."). Tailor everything tightly to the role — a ${roleTitle} guide should look nothing like a generic interview guide.`;
 
-  const response = await client.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [{ role: 'user', content: prompt }],
+  const message = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 3000,
+    messages: [{ role: 'user', content: prompt }],
   });
 
-  return response.choices[0].message.content;
+  return message.content[0].text;
 }
 
 module.exports = { generateJobDescription, generateInterviewGuide };

@@ -23,8 +23,11 @@ async function writeReq(req) {
 
 async function updateReq(reqId, fields) {
   const ddb = getClient();
-  const updates = { ...fields, updated_at: new Date().toISOString() };
-  const entries = Object.entries(updates);
+  const raw = { ...fields, updated_at: new Date().toISOString() };
+  // DynamoDB Document Client strips empty strings from ExpressionAttributeValues,
+  // leaving the UpdateExpression with undefined placeholders — skip empty values.
+  const entries = Object.entries(raw).filter(([, v]) => v !== undefined && v !== '');
+  if (entries.length === 0) return;
 
   const UpdateExpression = 'SET ' + entries.map((_, i) => `#k${i} = :v${i}`).join(', ');
   const ExpressionAttributeNames = Object.fromEntries(entries.map(([k], i) => [`#k${i}`, k]));
