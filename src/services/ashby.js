@@ -18,10 +18,9 @@ async function openAshbyReq(req) {
   const ax = getClient();
   const { data } = await ax.post('/job.create', {
     title: req.role_title,
-    description: req.job_description || '',
   });
-  console.log('[ashby] job.create response:', JSON.stringify(data));
-  return data.results?.id || data.result?.id || data.id;
+  if (!data.success) throw new Error(`job.create failed: ${JSON.stringify(data)}`);
+  return data.results.id;
 }
 
 // Transitions the job from Draft → Open (publishes it)
