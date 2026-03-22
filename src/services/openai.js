@@ -1,6 +1,6 @@
 const { BedrockRuntimeClient, ConverseCommand } = require('@aws-sdk/client-bedrock-runtime');
 
-const MODEL_ID = 'anthropic.claude-3-5-haiku-20241022-v1:0';
+const MODEL_ID = 'us.anthropic.claude-3-5-haiku-20241022-v1:0';
 
 function getClient() {
   return new BedrockRuntimeClient({ region: process.env.AWS_REGION || 'us-west-2' });
