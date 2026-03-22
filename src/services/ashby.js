@@ -19,8 +19,15 @@ async function lookupLocationId(ax, locationName) {
   const match = data.results.find(
     (l) => !l.isArchived && l.name.toLowerCase() === locationName.toLowerCase()
   );
-  if (!match) console.warn(`[ashby] no location match for "${locationName}", available:`, data.results.map((l) => l.name));
-  return match?.id || null;
+  if (match) return match.id;
+
+  console.log(`[ashby] location "${locationName}" not found, creating it`);
+  const { data: created } = await ax.post('/location.create', { name: locationName });
+  if (!created.success) {
+    console.warn(`[ashby] location.create failed:`, JSON.stringify(created));
+    return null;
+  }
+  return created.results.id;
 }
 
 async function lookupTeamId(ax, departmentName) {
