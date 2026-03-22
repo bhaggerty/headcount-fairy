@@ -88,6 +88,12 @@ async function openAshbyReq(req, slackClient) {
   if (!data.success) throw new Error(`job.create failed: ${JSON.stringify(data)}`);
   const jobId = data.results.id;
 
+  // Update job posting description (non-fatal)
+  if (req.job_description) {
+    await updateJobPostingDescription(ax, jobId, req.job_description)
+      .catch((err) => console.warn('[ashby] jobPosting description update failed:', err.message));
+  }
+
   // Set compensation if we have min/max
   const salaryMin = parseInt(req.salary_min, 10);
   const salaryMax = parseInt(req.salary_max, 10);
@@ -127,6 +133,40 @@ async function openAshbyReq(req, slackClient) {
   );
 
   return jobId;
+}
+
+async function updateJobPostingDescription(ax, jobId, descriptionText) {
+  if (!descriptionText) return;
+
+  // Find the job posting linked to this job
+  const { data: listData } = await ax.post('/jobPosting.list');
+  if (!listData.success) {
+    console.warn('[ashby] jobPosting.list failed:', JSON.stringify(listData));
+    return;
+  }
+
+  const posting = listData.results.find((p) => p.jobId === jobId);
+  if (!posting) {
+    console.warn(`[ashby] no job posting found for jobId ${jobId}`);
+    return;
+  }
+
+  // Convert plain text to basic HTML
+  const html = descriptionText
+    .split('\n\n')
+    .map((para) => `<p>${para.replace(/\n/g, '<br>')}</p>`)
+    .join('');
+
+  const payload = {
+    jobPostingId: posting.id,
+    descriptionParts: { descriptionBody: { html } },
+    suppressDescriptionOpening: true,
+    suppressDescriptionClosing: true,
+  };
+
+  console.log('[ashby] jobPosting.update request:', JSON.stringify({ jobPostingId: posting.id }));
+  const { data } = await ax.post('/jobPosting.update', payload);
+  console.log('[ashby] jobPosting.update response:', JSON.stringify(data));
 }
 
 // Transitions the job from Draft → Open (publishes it)
