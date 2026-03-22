@@ -30,13 +30,13 @@ async function lookupLocationId(ax, locationName) {
   return created.results.id;
 }
 
-async function lookupTeamId(ax, departmentName) {
+async function lookupDepartmentId(ax, departmentName) {
   const { data } = await ax.post('/department.list');
   if (!data.success) return null;
   const match = data.results.find(
-    (d) => !d.isArchived && d.name.toLowerCase() === departmentName.toLowerCase()
+    (d) => !d.isArchived && d.title.toLowerCase() === departmentName.toLowerCase()
   );
-  if (!match) console.warn(`[ashby] no department match for "${departmentName}", available:`, data.results.map((d) => d.name));
+  if (!match) console.warn(`[ashby] no department match for "${departmentName}", available:`, data.results.map((d) => d.title));
   return match?.id || null;
 }
 
@@ -44,14 +44,14 @@ async function lookupTeamId(ax, departmentName) {
 async function openAshbyReq(req) {
   const ax = getClient();
 
-  const [locationId, teamId] = await Promise.all([
+  const [locationId, departmentId] = await Promise.all([
     lookupLocationId(ax, req.location || ''),
-    lookupTeamId(ax, req.department || ''),
+    lookupDepartmentId(ax, req.department || ''),
   ]);
 
   const payload = {
     title: req.role_title,
-    ...(teamId && { teamId }),
+    ...(departmentId && { departmentId }),
     ...(locationId && { locationId }),
   };
 
