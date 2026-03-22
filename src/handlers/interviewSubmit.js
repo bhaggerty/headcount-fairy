@@ -291,7 +291,7 @@ function register(app) {
 
       // 3. Open Ashby req (non-fatal)
       try {
-        const jobId = await openAshbyReq(req);
+        const jobId = await openAshbyReq(req, client);
         await publishToWebsite(jobId);
         await updateReq(req_id, { ashby_job_id: jobId });
         console.log(`[ashby] opened job ${jobId} for req ${req_id}`);
