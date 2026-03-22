@@ -88,6 +88,21 @@ async function openAshbyReq(req, slackClient) {
   if (!data.success) throw new Error(`job.create failed: ${JSON.stringify(data)}`);
   const jobId = data.results.id;
 
+  // Set compensation if we have min/max
+  const salaryMin = parseInt(req.salary_min, 10);
+  const salaryMax = parseInt(req.salary_max, 10);
+  if (salaryMin && salaryMax) {
+    await ax.post('/job.updateCompensation', {
+      jobId,
+      compensationTiers: [{
+        minValue: salaryMin,
+        maxValue: salaryMax,
+        currencyCode: 'USD',
+        interval: '1 YEAR',
+      }],
+    }).catch((err) => console.warn('[ashby] job.updateCompensation failed:', err.message));
+  }
+
   // Create one opening per headcount
   const headcount = Math.max(1, parseInt(req.headcount, 10) || 1);
   await Promise.all(

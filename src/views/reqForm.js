@@ -66,12 +66,38 @@ function buildReqForm({ jd = '', error = null, loading = false } = {}) {
     },
     {
       type: 'input',
-      block_id: 'salary_range',
-      label: { type: 'plain_text', text: '💰 Salary range (the treasure chest)' },
+      block_id: 'salary_min',
+      label: { type: 'plain_text', text: '💰 Salary range — minimum' },
       element: {
-        type: 'plain_text_input',
+        type: 'static_select',
         action_id: 'value',
-        placeholder: { type: 'plain_text', text: 'e.g. $120,000–$150,000' },
+        placeholder: { type: 'plain_text', text: 'Select min' },
+        options: [
+          60000, 70000, 80000, 90000, 100000, 110000, 120000, 130000, 140000,
+          150000, 160000, 170000, 180000, 190000, 200000, 225000, 250000, 275000,
+          300000, 350000, 400000,
+        ].map((n) => ({
+          text: { type: 'plain_text', text: `$${n.toLocaleString()}` },
+          value: String(n),
+        })),
+      },
+    },
+    {
+      type: 'input',
+      block_id: 'salary_max',
+      label: { type: 'plain_text', text: '💰 Salary range — maximum' },
+      element: {
+        type: 'static_select',
+        action_id: 'value',
+        placeholder: { type: 'plain_text', text: 'Select max' },
+        options: [
+          60000, 70000, 80000, 90000, 100000, 110000, 120000, 130000, 140000,
+          150000, 160000, 170000, 180000, 190000, 200000, 225000, 250000, 275000,
+          300000, 350000, 400000,
+        ].map((n) => ({
+          text: { type: 'plain_text', text: `$${n.toLocaleString()}` },
+          value: String(n),
+        })),
       },
     },
     {
