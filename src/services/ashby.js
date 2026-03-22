@@ -16,9 +16,10 @@ function getClient() {
 // Creates a job in Ashby and returns the job ID
 async function openAshbyReq(req) {
   const ax = getClient();
-  const { data } = await ax.post('/job.create', {
-    title: req.role_title,
-  });
+  const payload = { title: req.role_title };
+  console.log('[ashby] job.create request:', JSON.stringify(payload));
+  const { data } = await ax.post('/job.create', payload);
+  console.log('[ashby] job.create response:', JSON.stringify(data));
   if (!data.success) throw new Error(`job.create failed: ${JSON.stringify(data)}`);
   return data.results.id;
 }
