@@ -10,6 +10,7 @@ require('./src/handlers/command').register(app);
 require('./src/handlers/reqSubmit').register(app);
 require('./src/handlers/approvalActions').register(app);
 require('./src/handlers/interviewSubmit').register(app);
+require('./src/handlers/ashbyWebhook').register(app);
 
 (async () => {
   await app.start(process.env.PORT || 8080);
