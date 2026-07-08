@@ -10,7 +10,7 @@ A Slack bot that manages the full headcount request lifecycle — from submissio
 4. **Interview plan** — requester builds their panel and gets an AI-generated interview guide.
 5. **Fanout** — Talent Coordinator is notified, the req is routed to the right recruiter, and the job is opened and published in Ashby.
 
-All requests are logged to a Google Sheet for tracking and downstream system use.
+DynamoDB is the source of truth for req state. Every write is also mirrored to a Google Sheet (best-effort, non-blocking) for a human-readable view.
 
 ## File Structure
 
@@ -27,10 +27,13 @@ src/
 │   ├── interviewForm.js        — Interview plan screens 1 & 2
 │   └── approvalMsgs.js         — DM blocks and approval modals
 └── services/
-    ├── sheets.js               — Google Sheets read/write
-    ├── openai.js               — GPT-4o JD and interview guide generation
+    ├── dynamo.js               — DynamoDB read/write (source of truth for req state)
+    ├── persistence.js          — Routes writes to DynamoDB + best-effort Sheets mirror
+    ├── sheets.js               — Google Sheets writes via Apps Script webhook
+    ├── openai.js               — JD and interview guide generation (Claude 3.5 Haiku via AWS Bedrock)
     ├── ashby.js                — Ashby job creation and publishing
-    └── notifications.js        — Slack DMs to Talent Coordinator and recruiters
+    ├── notifications.js        — Slack DMs to Talent Coordinator and recruiters
+    └── docx.js                 — Renders interview guides as downloadable .docx
 ```
 
 ## Approval Flow
@@ -52,7 +55,9 @@ Requester → /headcount-fairy → Hiring Lead → Executive Approver → Reques
 
 ## Google Sheet
 
-Tab: `Sheet1` — one row per req, headers on row 3.
+Human-facing mirror only — DynamoDB holds the full req record (approval notes, interview plan, Ashby ID, etc.). Written via the Apps Script webhook in `apps-script.js` (`APPS_SCRIPT_URL`/`APPS_SCRIPT_SECRET`).
+
+Tab: `Sheet1` — one row per req, headers on row 3. Only these columns are ever written:
 
 | Col | Field |
 |-----|-------|
@@ -62,8 +67,7 @@ Tab: `Sheet1` — one row per req, headers on row 3.
 | E | Hiring Manager |
 | F | Level |
 | G | JD Description |
-| H | Status |
-| I–AB | Full req data (approval notes, interview plan, Ashby ID, etc.) |
+| H | Status (updated as the req moves through approval) |
 
 ## Required Secrets
 
@@ -78,13 +82,15 @@ SLACK_USER_TALENT_COORDINATOR
 SLACK_USER_GTM_RECRUITER
 SLACK_USER_TECH_RECRUITER
 SLACK_USER_GENERAL_RECRUITER
-OPENAI_API_KEY
+AWS_REGION
+APP_DYNAMODB_TABLE_NAME
 ASHBY_API_KEY
-GOOGLE_SHEETS_ID
-GOOGLE_SERVICE_ACCOUNT_EMAIL
-GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
+APPS_SCRIPT_URL
+APPS_SCRIPT_SECRET
 PORT
 ```
+
+`AWS_REGION`/`APP_DYNAMODB_TABLE_NAME` are auto-injected by Union Station in production (Bedrock for AI generation, DynamoDB for req state). Running locally also requires AWS credentials (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` or a configured profile) that can reach both services.
 
 ## Running Locally
 
