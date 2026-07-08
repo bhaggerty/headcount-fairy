@@ -1,3 +1,5 @@
+const { formatSalaryRange } = require('./format');
+
 const DEPT_ROUTING = {
   Engineering: () => process.env.SLACK_USER_TECH_RECRUITER,
   Product: () => process.env.SLACK_USER_TECH_RECRUITER,
@@ -41,7 +43,7 @@ async function routeToRecruiter(client, req) {
             `*Department:* ${req.department}\n` +
             `*Level:* ${req.level}\n` +
             `*Headcount:* ${req.headcount}\n` +
-            `*Salary Range:* ${req.salary_range}\n` +
+            `*Salary Range:* ${formatSalaryRange(req)}\n` +
             `*Location:* ${req.location}\n` +
             `*Hiring Manager:* <@${req.hiring_manager_slack_id}>\n` +
             `*Requested by:* <@${req.requester_slack_id}>`,

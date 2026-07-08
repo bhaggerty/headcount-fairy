@@ -4,6 +4,7 @@ const { generateInterviewGuide } = require('../services/openai');
 const { dmCoordinator, dmCoordinatorError, routeToRecruiter } = require('../services/notifications');
 const { openAshbyReq, publishToWebsite } = require('../services/ashby');
 const { textToDocxBuffer } = require('../services/docx');
+const { formatSalaryRange } = require('../services/format');
 
 // Resolve a comma-separated string of Slack user IDs to display names
 async function resolveNames(client, idString) {
@@ -265,7 +266,7 @@ function register(app) {
         client,
         `🧚 *New Approved Req Ready for Launch — ${req.role_title}* (\`${req_id}\`)\n\n` +
           `*Department:* ${req.department} | *Level:* ${req.level} | *Headcount:* ${req.headcount}\n` +
-          `*Salary Range:* ${req.salary_range} | *Location:* ${req.location}\n` +
+          `*Salary Range:* ${formatSalaryRange(req)} | *Location:* ${req.location}\n` +
           `*Hiring Manager:* <@${req.hiring_manager_slack_id}>\n` +
           `*Requested by:* <@${req.requester_slack_id}>\n\n` +
           `*Job Description:*\n${req.job_description || '_None_'}` +

@@ -9,6 +9,7 @@ const {
 } = require('../views/approvalMsgs');
 const { buildInterviewScreen1 } = require('../views/interviewForm');
 const { updateReq, getReq } = require('../services/persistence');
+const { formatSalaryRange } = require('../services/format');
 
 // Post to a Slack response_url to update the original message
 async function updateOriginalMsg(response_url, text) {
@@ -203,7 +204,7 @@ function register(app) {
               text:
                 `*Full Req Summary:*\n` +
                 `*Role:* ${req.role_title} | *Dept:* ${req.department} | *Level:* ${req.level}\n` +
-                `*Headcount:* ${req.headcount} | *Salary:* ${req.salary_range}`,
+                `*Headcount:* ${req.headcount} | *Salary:* ${formatSalaryRange(req)}`,
             },
           },
         ],

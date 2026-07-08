@@ -1,3 +1,5 @@
+const { formatSalaryRange } = require('../services/format');
+
 // ─── DM Block Builders ──────────────────────────────────────────────────────
 
 function alexDM(req) {
@@ -20,7 +22,7 @@ function alexDM(req) {
             `*Headcount:* ${req.headcount}\n` +
             `*Department:* ${req.department}\n` +
             `*Level:* ${req.level}\n` +
-            `*Salary Range:* ${req.salary_range}\n` +
+            `*Salary Range:* ${formatSalaryRange(req)}\n` +
             `*Location:* ${req.location}\n` +
             `*Hiring Manager:* <@${req.hiring_manager_slack_id}>\n` +
             `*Requested by:* <@${req.requester_slack_id}>`,
@@ -86,7 +88,7 @@ function joshDM(req, alexNotes) {
           `*Headcount:* ${req.headcount}\n` +
           `*Department:* ${req.department}\n` +
           `*Level:* ${req.level}\n` +
-          `*Salary Range:* ${req.salary_range}\n` +
+          `*Salary Range:* ${formatSalaryRange(req)}\n` +
           `*Location:* ${req.location}\n` +
           `*Hiring Manager:* <@${req.hiring_manager_slack_id}>\n` +
           `*Requested by:* <@${req.requester_slack_id}>`,
